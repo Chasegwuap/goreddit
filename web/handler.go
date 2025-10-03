@@ -28,7 +28,26 @@ func NewHandler(store goreddit.Store) *Handler {
 
 	h.Get("/html", func(w http.ResponseWriter, r *http.Request) {
 		t := template.Must(template.ParseFiles("templates/layout.html"))
-		t.Execute(w, "This is a title")
+
+		type params struct {
+			Title   string
+			Text    string
+			Lines   []string
+			Number1 int
+			Number2 int
+		}
+
+		t.Execute(w, params{
+			Title: "Reddit clone",
+			Text:  "Welcome to our 123 reddit clone ",
+			Lines: []string{
+				"Line1",
+				"Line2",
+				"Line3",
+			},
+			Number1: 421,
+			Number2: 421,
+		})
 
 	})
 
