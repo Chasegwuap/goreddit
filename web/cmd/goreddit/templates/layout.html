@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h1>{{.Title}}</h1>
+    <p>{{.Text}}</p>
+    <ul>
+        {{range .Lines}}
+        <li>{{.}}</li>
+        {{end}}
+    </ul>
+
+    {{if eq .Number1 .Number2}}
+    Numbers are equal
+    {{else}}
+    Number are not equal
+    {{end}}
+
+</body>
+</html>
