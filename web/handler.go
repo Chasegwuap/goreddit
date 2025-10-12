@@ -27,7 +27,8 @@ func NewHandler(store goreddit.Store) *Handler {
 	})
 
 	h.Get("/html", func(w http.ResponseWriter, r *http.Request) {
-		t := template.Must(template.ParseFiles("templates/layout.html"))
+		t := template.Must(template.New("layout.html").ParseGlob("templates/includes/*.html"))
+		t = template.Must(t.ParseFiles("templates/layout.html", "templates/childtemplate.html"))
 
 		type params struct {
 			Title   string
@@ -44,8 +45,9 @@ func NewHandler(store goreddit.Store) *Handler {
 				"Line1",
 				"Line2",
 				"Line3",
+				"Line4",
 			},
-			Number1: 421,
+			Number1: 425,
 			Number2: 421,
 		})
 
