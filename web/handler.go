@@ -18,41 +18,19 @@ func NewHandler(store goreddit.Store) *Handler {
 		Store: store,
 	}
 	h.Use(middleware.Logger)
+
+	h.Get("/", h.Home())
 	h.Route("/threads", func(r chi.Router) {
 		r.Get("/", h.Threadslist())
 		r.Get("/new", h.ThreadsCreate())
 		r.Post("/", h.ThreadsStore())
+		r.Get("/{id}", h.ThreadsShow())
 		r.Post("/{id}/delete", h.ThreadsDelete())
+		r.Get("/{id}/new", h.PostCreate())
+		r.Post("/{id}", h.PostStore())
+		r.Get("/{threadID}/{postID}", h.PostShow())
 
 	})
-
-	h.Get("/html", func(w http.ResponseWriter, r *http.Request) {
-		t := template.Must(template.New("layout.html").ParseGlob("templates/includes/*.html"))
-		t = template.Must(t.ParseFiles("templates/layout.html", "templates/childtemplate.html"))
-
-		type params struct {
-			Title   string
-			Text    string
-			Lines   []string
-			Number1 int
-			Number2 int
-		}
-
-		t.Execute(w, params{
-			Title: "Reddit clone",
-			Text:  "Welcome to our 123 reddit clone ",
-			Lines: []string{
-				"Line1",
-				"Line2",
-				"Line3",
-				"Line4",
-			},
-			Number1: 425,
-			Number2: 421,
-		})
-
-	})
-
 	return h
 }
 
@@ -62,28 +40,20 @@ type Handler struct {
 	Store goreddit.Store
 }
 
-const threadsListHTML = `
-<h1>Threads</h1>
-{{range .Threads}}
-<dl>
-  <dt><strong>{{.Title}}</strong></dt>
-  <dd>{{.Description}}</dd> 
-  <dd>
-	<form action = "/threads/{{.ID}}/delete" method="POST">
-		<button type="submit">Delete</button>
-	</form>
-	</dd>
-{{end}}
-</dl>
-<a href="/threads/new">Create thread</a>s
-`
+func (h *Handler) Home() http.HandlerFunc {
+	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/home.html"))
+	return func(w http.ResponseWriter, r *http.Request) {
+		tmpl.Execute(w, nil)
+	}
+
+}
 
 func (h *Handler) Threadslist() http.HandlerFunc {
 	type data struct {
 		Threads []goreddit.Thread
 	}
 
-	tmpl := template.Must(template.New("").Parse(threadsListHTML))
+	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/threads.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		ttPtrs, err := h.Store.Threads()
 		if err != nil {
@@ -101,23 +71,16 @@ func (h *Handler) Threadslist() http.HandlerFunc {
 	}
 }
 
-const ThreadsCreateHTML = `
-<h1>Create New Thread</h1>
-<form action="/threads" method="POST">
-  Title:<br>
-  <input type="text" name="title"><br><br>
-
-  Description:<br>
-  <textarea name="description"></textarea><br><br>
-
-  <button type="submit">Create Thread</button>
-</form>
-
-
-`
-
 func (h *Handler) ThreadsCreate() http.HandlerFunc {
-	tmpl := template.Must(template.New("").Parse(ThreadsCreateHTML))
+	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/threads_create.html"))
+	return func(w http.ResponseWriter, r *http.Request) {
+		tmpl.Execute(w, nil)
+	}
+
+}
+
+func (h *Handler) ThreadsShow() http.HandlerFunc {
+	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/thread.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.Execute(w, nil)
 	}
@@ -161,4 +124,36 @@ func (h *Handler) ThreadsDelete() http.HandlerFunc {
 		http.Redirect(w, r, "/threads", http.StatusFound)
 	}
 
+}
+
+func (h *Handler) PostCreate() http.HandlerFunc {
+	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/post_create.html"))
+	return func(w http.ResponseWriter, r *http.Request) {
+		tmpl.Execute(w, nil)
+	}
+
+}
+func (h *Handler) PostShow() http.HandlerFunc {
+	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/post_create.html"))
+	return func(w http.ResponseWriter, r *http.Request) {
+		tmpl.Execute(w, nil)
+	}
+
+}
+func (h *Handler) PostStore() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		title := r.FormValue("title")
+		description := r.FormValue("description")
+
+		if err := h.Store.CreateThread(&goreddit.Thread{
+			ID:          uuid.New(),
+			Title:       title,
+			Description: description,
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/threads", http.StatusFound)
+	}
 }
