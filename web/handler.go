@@ -72,7 +72,7 @@ func (h *Handler) Threadslist() http.HandlerFunc {
 }
 
 func (h *Handler) ThreadsCreate() http.HandlerFunc {
-	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/threads_create.html"))
+	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/thread_create.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.Execute(w, nil)
 	}
@@ -80,11 +80,35 @@ func (h *Handler) ThreadsCreate() http.HandlerFunc {
 }
 
 func (h *Handler) ThreadsShow() http.HandlerFunc {
-	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/thread.html"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl.Execute(w, nil)
+	type data struct {
+		Thread goreddit.Thread
+		Posts  []*goreddit.Post
 	}
 
+	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/thread.html"))
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+
+		}
+
+		t, err := h.Store.Thread(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		pp, err := h.Store.PostByThread(t.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		tmpl.Execute(w, data{Thread: t, Posts: pp})
+	}
 }
 
 func (h *Handler) ThreadsStore() http.HandlerFunc {
@@ -127,9 +151,24 @@ func (h *Handler) ThreadsDelete() http.HandlerFunc {
 }
 
 func (h *Handler) PostCreate() http.HandlerFunc {
+	type data struct {
+		Thread goreddit.Thread
+	}
 	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/post_create.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl.Execute(w, nil)
+		idstr := chi.URLParam(r, "id")
+
+		id, err := uuid.Parse(idstr)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		t, err := h.Store.Thread(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		tmpl.Execute(w, data{Thread: t})
 	}
 
 }
