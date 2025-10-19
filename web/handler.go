@@ -173,26 +173,75 @@ func (h *Handler) PostCreate() http.HandlerFunc {
 
 }
 func (h *Handler) PostShow() http.HandlerFunc {
+	type data struct {
+		Thread goreddit.Thread
+		Post   goreddit.Post
+	}
+
 	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/post_create.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl.Execute(w, nil)
+		postIDSTR := chi.URLParam(r, "postID")
+		threadIDSTR := chi.URLParam(r, "threadID")
+
+		postID, err := uuid.Parse(postIDSTR)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		threadID, err := uuid.Parse(threadIDSTR)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		p, err := h.Store.Post(postID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+
+		}
+		t, err := h.Store.Thread(threadID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+
+		}
+
+		tmpl.Execute(w, data{Thread: t, Post: p})
 	}
 
 }
 func (h *Handler) PostStore() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		title := r.FormValue("title")
-		description := r.FormValue("description")
+		content := r.FormValue("content")
 
-		if err := h.Store.CreateThread(&goreddit.Thread{
-			ID:          uuid.New(),
-			Title:       title,
-			Description: description,
-		}); err != nil {
+		idstr := chi.URLParam(r, "id")
+
+		id, err := uuid.Parse(idstr)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+
+		}
+		t, err := h.Store.Thread(id)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		http.Redirect(w, r, "/threads", http.StatusFound)
+		p := &goreddit.Post{
+			ID:       uuid.New(),
+			ThreadID: t.ID,
+			Title:    title,
+			Content:  content,
+		}
+
+		if err := h.Store.CreatePost(p); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/threads/"+t.ID.String()+"/"+p.ID.String(), http.StatusFound)
 	}
 }
