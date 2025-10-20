@@ -17,3 +17,4 @@ migrate-down:
 
 #compile  CompileDaemon -command="go run ./cmd/goreddit"
 
+#CompileDaemon -command="go run ."
